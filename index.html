@@ -2,14 +2,14 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Панель Керування Табло</title>
+    <title>Табло: Повний Фікс</title>
     <style>
         body { margin: 0; padding: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         .slide { display: none; width: 100vw; height: 100vh; position: relative; }
         iframe { width: 100%; height: 100%; border: none; background: #fff; }
         .text-slide { padding: 40px; box-sizing: border-box; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         h1 { color: #ff4444; font-size: 3.5rem; text-transform: uppercase; border-bottom: 4px solid #ff4444; margin-bottom: 20px; width: 80%; }
-        .content-text { font-size: 2.8rem; line-height: 1.4; font-weight: bold; text-shadow: 3px 3px 12px #000; white-space: pre-wrap; max-width: 90%; }
+        .content-text { font-size: 2.8rem; line-height: 1.4; font-weight: bold; text-shadow: 3px 3px 12px #000; white-space: pre-wrap; max-width: 90%; word-wrap: break-word; }
         .news-text { font-size: 1.8rem; text-align: left; font-weight: normal; width: 90%; }
         #clock { position: absolute; top: 10px; right: 20px; font-size: 2rem; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 10px; z-index: 100; }
     </style>
@@ -19,42 +19,48 @@
     <div id="board"></div>
 
     <script>
-        // Оновлене посилання на вашу нову таблицю у форматі CSV
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsIma3Gu-WBHK0wXGxVpoEg2PXlwJqqtCoOAXbtRN3c-GCNXoM20z2Yj8804LLXWrT0EYyZdv4PO40/pub?output=csv';
 
-        function parseCSVLine(text) {
-            const result = [];
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
             let cell = '';
             let inQuotes = false;
             for (let i = 0; i < text.length; i++) {
-                let char = text[i];
-                if (char === '"') inQuotes = !inQuotes;
-                else if (char === ',' && !inQuotes) {
-                    result.push(cell);
-                    cell = '';
-                } else {
-                    cell += char;
-                }
+                const char = text[i];
+                const nextChar = text[i+1];
+                if (char === '"' && inQuotes && nextChar === '"') { cell += '"'; i++; }
+                else if (char === '"') { inQuotes = !inQuotes; }
+                else if (char === ',' && !inQuotes) { row.push(cell); cell = ''; }
+                else if ((char === '\r' || char === '\n') && !inQuotes) {
+                    if (cell || row.length > 0) {
+                        row.push(cell);
+                        rows.push(row);
+                    }
+                    row = []; cell = '';
+                    if (char === '\r' && nextChar === '\n') i++;
+                } else { cell += char; }
             }
-            result.push(cell);
-            return result;
+            if (cell || row.length > 0) { row.push(cell); rows.push(row); }
+            return rows;
         }
 
         async function loadBoard() {
             try {
                 const res = await fetch(csvUrl + '&nocache=' + Date.now());
                 const csvText = await res.text();
-                const lines = csvText.split(/\r?\n/);
+                const data = parseCSV(csvText);
                 
                 const board = document.getElementById('board');
+                const slidesData = data.filter(cols => cols[0] && ['карта', 'новини', 'вітання'].includes(cols[0].toLowerCase()));
+
+                if (slidesData.length === 0) return;
+
                 board.innerHTML = ''; 
-
-                const slidesData = lines.map(line => parseCSVLine(line)).filter(cols => cols[0]);
-
                 slidesData.forEach((cols, i) => {
-                    const type = cols[0].replace(/"/g, '').trim().toLowerCase();
-                    const body = cols[1] ? cols[1].replace(/"/g, '').replace(/""/g, '"').trim() : '';
-                    const bg = cols[2] ? cols[2].replace(/"/g, '').trim() : '';
+                    const type = cols[0].trim().toLowerCase();
+                    const body = cols[1] ? cols[1].trim() : '';
+                    const bg = cols[2] ? cols[2].trim() : '';
 
                     const slide = document.createElement('div');
                     slide.className = 'slide';
@@ -66,7 +72,6 @@
                         slide.innerHTML = `<h1>НОВИНИ</h1><div class="content-text news-text">${body}</div>`;
                     } else if (type === 'вітання') {
                         slide.className += ' text-slide';
-                        // Використовуємо вашу картинку-фон, якщо вона вказана, або стандартний фон
                         const bgImg = bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif';
                         slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.3),rgba(0,0,0,0.3)), url('${bgImg}')`;
                         slide.style.backgroundSize = 'cover';
@@ -76,8 +81,8 @@
                     board.appendChild(slide);
                 });
 
-                if (slidesData.length > 0) startSlider();
-            } catch (e) { console.error("Помилка завантаження таблиці:", e); }
+                startSlider();
+            } catch (e) { console.error(e); }
         }
 
         let current = 0;
@@ -90,20 +95,15 @@
             
             function showSlide(index) {
                 slides.forEach(s => s.style.display = 'none');
-                const s = slides[index];
-                s.style.display = (s.querySelector('iframe')) ? 'block' : 'flex';
+                slides[index].style.display = (slides[index].querySelector('iframe')) ? 'block' : 'flex';
             }
 
             showSlide(0);
-
             slideInterval = setInterval(() => {
-                slides[current].style.display = 'none';
                 current = (current + 1) % slides.length;
                 showSlide(current);
-                
-                // Оновлюємо дані при поверненні до першого слайда
                 if (current === 0) loadBoard();
-            }, 30000); // 30 секунд на слайд
+            }, 30000);
         }
 
         loadBoard();
