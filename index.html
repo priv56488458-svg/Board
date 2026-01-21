@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Табло з Хронометром</title>
+    <title>Табло: Flip Clock Timer</title>
     <style>
         body { margin: 0; padding: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         .slide { display: none; width: 100vw; height: 100vh; position: relative; flex-direction: column; }
@@ -10,12 +10,42 @@
         
         .text-slide { padding: 50px; box-sizing: border-box; text-align: center; justify-content: center; align-items: center; display: flex; }
         .content-box { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
-        
-        /* Стиль для хронометра */
-        .timer-title { color: #ffd700; font-size: 3rem; text-transform: uppercase; margin-bottom: 20px; font-weight: 900; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
-        .timer-days { font-size: 8rem; font-weight: 900; color: #fff; line-height: 1; }
-        .timer-sub { font-size: 2.5rem; color: #eee; margin-top: 10px; }
 
+        /* --- СТИЛЬ ПЕРЕКИДНОГО ГОДИННИКА --- */
+        .timer-title { color: #ffd700; font-size: 2.5rem; text-transform: uppercase; margin-bottom: 30px; font-weight: 900; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
+        
+        .flip-container { display: flex; gap: 15px; perspective: 1000px; }
+        
+        .flip-card {
+            background: #222;
+            padding: 20px 30px;
+            border-radius: 15px;
+            position: relative;
+            font-size: 10rem;
+            font-weight: 900;
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border: 2px solid #444;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        /* Ефект розділення картки навпіл */
+        .flip-card::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0,0,0,0.6);
+            z-index: 2;
+            transform: translateY(-50%);
+        }
+
+        .timer-sub { font-size: 2rem; color: #eee; margin-top: 40px; font-weight: bold; text-shadow: 1px 1px 5px #000; }
+
+        /* Стандартні стилі */
         h1 { color: #ff4444; font-size: 3.5rem; margin: 0 0 20px 0; border-bottom: 4px solid #ff4444; text-transform: uppercase; width: 100%; }
         .content-text { font-size: 2.8rem; line-height: 1.4; font-weight: bold; white-space: pre-wrap; text-shadow: 3px 3px 12px #000; }
         .news-text { font-size: 2rem; text-align: left; font-weight: normal; color: #eee; }
@@ -51,7 +81,7 @@
             const start = new Date('2022-02-24');
             const now = new Date();
             const diff = now - start;
-            return Math.floor(diff / (1000 * 60 * 60 * 24));
+            return Math.floor(diff / (1000 * 60 * 60 * 24)).toString();
         }
 
         async function updateBoard() {
@@ -79,18 +109,25 @@
                     } else if (type === 'хронометр') {
                         slide.className += ' text-slide';
                         const bgImg = bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif';
-                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), url('${bgImg}')`;
+                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('${bgImg}')`;
                         slide.style.backgroundSize = 'cover';
+                        
+                        const days = getDaysSinceStart();
+                        let cardsHTML = '';
+                        for(let digit of days) {
+                            cardsHTML += `<div class="flip-card">${digit}</div>`;
+                        }
+
                         slide.innerHTML = `
                             <div class="content-box">
                                 <div class="timer-title">Незламності та боротьби</div>
-                                <div class="timer-days">${getDaysSinceStart()} ДНІВ</div>
-                                <div class="timer-sub">від початку повномасштабного вторгнення</div>
+                                <div class="flip-container">${cardsHTML}</div>
+                                <div class="timer-sub">ДНІВ ВІД ПОЧАТКУ ПОВНОМАСШТАБНОГО ВТОРГНЕННЯ</div>
                             </div>`;
                     } else if (type === 'вітання') {
                         slide.className += ' text-slide';
                         const bgImg = bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif';
-                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.3),rgba(0,0,0,0.3)), url('${bgImg}')`;
+                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4)), url('${bgImg}')`;
                         slide.style.backgroundSize = 'cover';
                         slide.innerHTML = `<div class="content-box"><div class="content-text">${body}</div></div>`;
                     } else if (type === 'новини') {
