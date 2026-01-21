@@ -72,4 +72,91 @@
 
         function createFlipHTML(value) {
             return `<div class="flip-container">` + 
-                   value.split('').map(digit =>
+                   value.split('').map(digit => `<div class="flip-card">${digit}</div>`).join('') + 
+                   `</div>`;
+        }
+
+        async function updateBoard() {
+            try {
+                const res = await fetch(csvUrl + '&nocache=' + Date.now());
+                const csvText = await res.text();
+                const data = csvText.split(/\r?\n/).map(line => line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g));
+                const board = document.getElementById('board');
+                
+                const validSlides = data.filter(r => r && r[0] && ['карта', 'новини', 'вітання', 'хронометр'].includes(r[0].trim().toLowerCase()));
+                board.innerHTML = '';
+
+                validSlides.forEach((cols, i) => {
+                    const type = cols[0].trim().toLowerCase();
+                    const body = cols[1] ? cols[1].trim().replace(/^"|"$/g, '') : '';
+                    const bg = cols[2] ? cols[2].trim().replace(/^"|"$/g, '') : '';
+                    
+                    const slide = document.createElement('div');
+                    slide.className = 'slide' + (i === 0 ? ' active' : '');
+                    slide.id = 'slide-' + type;
+                    slide.style.display = i === 0 ? (type === 'карта' ? 'block' : 'flex') : 'none';
+                    
+                    if (type === 'карта') {
+                        slide.innerHTML = `<iframe src="${body}"></iframe>`;
+                    } else if (type === 'хронометр') {
+                        const bgImg = bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif';
+                        slide.className += ' text-slide';
+                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)), url('${bgImg}')`;
+                        slide.style.backgroundSize = 'cover';
+                        slide.innerHTML = `
+                            <div class="content-box">
+                                <div class="timer-title">Незламності та боротьби</div>
+                                <div class="timer-groups" id="live-timer"></div>
+                                <div class="timer-sub">ВІД ПОЧАТКУ ПОВНОМАСШТАБНОГО ВТОРГНЕННЯ</div>
+                            </div>`;
+                    } else if (type === 'вітання') {
+                        slide.className += ' text-slide';
+                        const bgImg = bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif';
+                        slide.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4)), url('${bgImg}')`;
+                        slide.style.backgroundSize = 'cover';
+                        slide.innerHTML = `<div class="content-box"><div class="content-text">${body}</div></div>`;
+                    } else if (type === 'новини') {
+                        slide.className += ' text-slide';
+                        slide.innerHTML = `<h1>НОВИНИ</h1><div class="content-box"><div class="content-text news-text">${body}</div></div>`;
+                    }
+                    board.appendChild(slide);
+                });
+                startRotation();
+            } catch (e) { console.error(e); }
+        }
+
+        function refreshTimer() {
+            const timerEl = document.getElementById('live-timer');
+            if (!timerEl) return;
+            const t = getTimeRemaining();
+            timerEl.innerHTML = `
+                <div class="timer-group"><div class="label">Днів</div>${createFlipHTML(t.days)}</div>
+                <div class="timer-group"><div class="label">Годин</div>${createFlipHTML(t.hours)}</div>
+                <div class="timer-group"><div class="label">Хвилин</div>${createFlipHTML(t.minutes)}</div>
+                <div class="timer-group"><div class="label">Секунд</div>${createFlipHTML(t.seconds)}</div>
+            `;
+        }
+
+        let slideIndex = 0;
+        let rotationTimer;
+        function startRotation() {
+            const slides = document.querySelectorAll('.slide');
+            if (slides.length <= 1) return;
+            if (rotationTimer) clearInterval(rotationTimer);
+            rotationTimer = setInterval(() => {
+                slides[slideIndex].style.display = 'none';
+                slideIndex = (slideIndex + 1) % slides.length;
+                const next = slides[slideIndex];
+                next.style.display = next.querySelector('iframe') ? 'block' : 'flex';
+                if (slideIndex === 0) updateBoard();
+            }, 30000);
+        }
+
+        updateBoard();
+        setInterval(refreshTimer, 1000);
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('uk-UA', {hour:'2-digit', minute:'2-digit'});
+        }, 1000);
+    </script>
+</body>
+</html>
