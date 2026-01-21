@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Універсальне Табло</title>
+    <style>
+        body { margin: 0; padding: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        .slide { display: none; width: 100vw; height: 100vh; position: relative; }
+        iframe { width: 100%; height: 100%; border: none; background: #fff; }
+        .text-slide { padding: 40px; box-sizing: border-box; text-align: center; justify-content: center; align-items: center; display: flex; flex-direction: column; }
+        .news-box { font-size: 1.8rem; text-align: left; white-space: pre-wrap; width: 90%; }
+        .bday-box { font-size: 3.3rem; font-weight: bold; text-shadow: 3px 3px 10px #000; padding: 40px; }
+        h1 { color: #ff4444; font-size: 3rem; text-transform: uppercase; border-bottom: 4px solid #ff4444; margin-bottom: 20px; }
+        #clock { position: absolute; top: 10px; right: 20px; font-size: 2rem; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 10px; z-index: 100; }
+    </style>
+</head>
+<body>
+    <div id="clock">00:00</div>
+    <div id="container"></div>
+
+    <script>
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEa4Dv6ZUnOjwEpd31r3LpfChJt2Eq6qenSjpq72x5L_Rdpl28ge7jyF_qi_p0p-CVbp7m7UIHSv24/pub?output=csv';
+
+        async function initBoard() {
+            try {
+                const res = await fetch(csvUrl + '&v=' + Date.now());
+                const text = await res.text();
+                const lines = text.split(/\r?\n/).map(line => line.match(/(".*?"|[^,]+)(?=\s*,|s*$)/g));
+                
+                const container = document.getElementById('container');
+                container.innerHTML = ''; 
+
+                lines.forEach((cols, index) => {
+                    if (!cols) return;
+                    const type = cols[0].replace(/"/g, '').trim().toLowerCase();
+                    const content = cols[1] ? cols[1].replace(/"/g, '').replace(/""/g, '"').trim() : '';
+                    const bg = cols[2] ? cols[2].replace(/"/g, '').trim() : '';
+
+                    const div = document.createElement('div');
+                    div.className = 'slide' + (index === 0 ? ' active' : '');
+                    div.id = 'slide' + index;
+
+                    if (type === 'карта') {
+                        div.innerHTML = `<iframe src="${content}"></iframe>`;
+                    } else if (type === 'новини') {
+                        div.className += ' text-slide';
+                        div.innerHTML = `<h1>НОВИНИ</h1><div class="news-box">${content}</div>`;
+                    } else if (type === 'вітання') {
+                        div.className += ' text-slide';
+                        div.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4)), url('${bg || 'Flag-Ukraine-carbon-gold-frameimage-from-torange_biz-free-photobank.jfif'}')`;
+                        div.style.backgroundSize = 'cover';
+                        div.innerHTML = `<div class="bday-box">${content}</div>`;
+                    }
+                    container.appendChild(div);
+                });
+
+                startSlider(lines.length);
+            } catch (e) { console.error(e); }
+        }
+
+        let current = 0;
+        function startSlider(total) {
+            setInterval(() => {
+                document.querySelectorAll('.slide')[current].style.display = 'none';
+                current = (current + 1) % total;
+                const next = document.querySelectorAll('.slide')[current];
+                next.style.display = (next.querySelector('iframe')) ? 'block' : 'flex';
+                if (current === 0) initBoard();
+            }, 30000);
+            document.querySelectorAll('.slide')[0].style.display = 'block';
+        }
+
+        initBoard();
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('uk-UA', {hour:'2-digit', minute:'2-digit'}); }, 1000);
+    </script>
+</body>
+</html>
